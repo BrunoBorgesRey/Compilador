@@ -1,0 +1,47 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Compilador",
+            "request": "launch",
+            "mainClass": "Compilador",
+            "args": [
+                "programaPascal.pas"
+            ],
+            "projectName": "ProjetoSintatico_fdd7ee5"
+        },
+        {
+            "type": "java",
+            "name": "Current File",
+            "request": "launch",
+            "mainClass": "${file}",
+            "args": [
+                "programaPascal.pas"
+            ]
+        },
+        {
+            "type": "java",
+            "name": "App",
+            "request": "launch",
+            "mainClass": "App",
+            "args": [
+                "programaPascal.pas"
+            ],
+            "projectName": "ProjetoCompilador_f28e3619"
+        },
+        {
+            "type": "java",
+            "name": "Compilador",
+            "request": "launch",
+            "mainClass": "Compilador",
+            "args": [
+                "programaPascal.pas"
+            ],
+            "projectName": "ProjetoCompilador_f28e3619"
+        }
+    ]
+}
