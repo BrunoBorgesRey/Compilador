@@ -30,6 +30,7 @@ public class Sintatico {
                 // {A01}
                 if (token.getClasse() == Classe.pontoEVirgula) {
                     token = lexico.nextToken();
+                    //Analisa o corpo do programa
                     corpo();
                     if (token.getClasse() == Classe.ponto) {
                         token = lexico.nextToken();
@@ -54,10 +55,9 @@ public class Sintatico {
 
     }
 
-    // <corpo> ::= <declara> <rotina> {A44} begin <sentencas> end {A46}
+    // <corpo> ::= <declara> {A44} begin <sentencas> end {A46}
     private void corpo() {
         declara();
-        //rotina();
         // {A44}
         if (token.getClasse() == Classe.palavraReservada &&
                 token.getValor().getValorTexto().equals("begin")) {
@@ -71,13 +71,12 @@ public class Sintatico {
                 System.err.println(token.getLinha() + "," + token.getColuna() +
                         " Palavra reservada 'end' esperado no final do programa principal na regra corpo");
             }
-
         } else {
             System.err.println(token.getLinha() + "," + token.getColuna() +
                     "Palavra reservada 'begin' esperado no inicio do programa principal na regra corpo");
         }
     }
-
+//-------------------DECLARAÇÃO DE VARIÁVEIS--------------
     // <declara> ::= var <dvar> <mais_dc> | ε
     private void declara() {
         if (token.getClasse() == Classe.palavraReservada &&
@@ -130,7 +129,7 @@ public class Sintatico {
             token = lexico.nextToken();
         } else {
             System.err.println(token.getLinha() + "," + token.getColuna() +
-                    "NumeroInteiro esperado no programa depois de var na regra tipo_var");
+                    "Integer esperado no programa depois de var na regra tipo_var");
         }
     }
 
@@ -167,13 +166,21 @@ public class Sintatico {
             cont_sentencas();
         } else {
             System.err.println(token.getLinha() + "," + token.getColuna() +
-                    "(;) esperado na regra mais_sentencas ");
+                    " (;) esperado na regra mais_sentencas ");
         }
     }
 
     // <cont_sentencas> ::= <sentencas> | ε
     private void cont_sentencas() {
-        if (token.getClasse() == Classe.identificador) {
+        if ((token.getClasse() == Classe.palavraReservada &&
+         (token.getValor().getValorTexto().equals("for") 
+         || token.getValor().getValorTexto().equals("read") 
+         || token.getValor().getValorTexto().equals("write") 
+         || token.getValor().getValorTexto().equals("writeln")  
+         || token.getValor().getValorTexto().equals("repeat") 
+         || token.getValor().getValorTexto().equals("while")
+         || token.getValor().getValorTexto().equals("if")
+         ))|| token.getClasse()== Classe.identificador){
             sentencas();
         }
     }
@@ -208,8 +215,7 @@ public class Sintatico {
             token = lexico.nextToken();
             // {A09}
             mais_exp_write();
-        } else if (token.getClasse() == Classe.palavraReservada &&
-                token.getValor().getValorTexto().equals("string")) {
+        } else if (token.getClasse() == Classe.string) {
             token = lexico.nextToken();
             // {A59}
             mais_exp_write();
@@ -219,9 +225,8 @@ public class Sintatico {
             mais_exp_write();
         } else {
             System.err.println(token.getLinha() + "," + token.getColuna() +
-                    "Erro na regra exp_write");
+                    " Erro na regra exp_write");
         }
-
     }
 
     // <mais_exp_write> ::= , <exp_write> | ε
@@ -234,7 +239,7 @@ public class Sintatico {
 
     /*
      * <comando> ::=
-     * 
+     * read ( <var_read> ) |
      * write ( <exp_write> ) |
      * writeln ( <exp_write> ) {A61} |
      * for <id> {A57} := <expressao> {A11} to <expressao> {A12} do begin <sentencas>
@@ -246,94 +251,106 @@ public class Sintatico {
      * <id> {A49} := <expressao> {A22} | <chamada_procedimento>
      */
     private void comando() {
-        //read ( <var_read> ) |
-        if (token.getClasse() == Classe.palavraReservada &&
-                token.getValor().getValorTexto().equals("read")) {
-            token = lexico.nextToken();
-            if (token.getClasse() == Classe.parenteseEquerdo) {
+        // read ( <var_read> )
+        if (token.getClasse() == Classe.palavraReservada) {
+            if (token.getValor().getValorTexto().equals("read")) {
                 token = lexico.nextToken();
-                var_read();
-                if (token.getClasse() == Classe.parenteseDireito) {
+                if (token.getClasse() == Classe.parenteseEquerdo) {
                     token = lexico.nextToken();
+                    var_read();
+                    if (token.getClasse() == Classe.parenteseDireito) {
+                        token = lexico.nextToken();
+                    } else {
+                        System.err.println(token.getLinha() + "," + token.getColuna() + "Erro na regra comando read");
+                    }
                 } else {
-                    System.err.println(token.getLinha() + "," + token.getColuna() +
-                            "Erro na regra comando read");
+                    System.err.println(token.getLinha() + "," + token.getColuna() + "Erro na regra comando read");
                 }
-            }
-        //write ( <exp_write> ) |
-        } else if (token.getClasse() == Classe.palavraReservada &&
-                token.getValor().getValorTexto().equals("write")) {
-            token = lexico.nextToken();
-            if (token.getClasse() == Classe.parenteseEquerdo) {
+                // write ( <exp_write> ) |
+            } else if (token.getValor().getValorTexto().equals("write")) {
                 token = lexico.nextToken();
-                exp_write();
-                if (token.getClasse() == Classe.parenteseDireito) {
+                if (token.getClasse() == Classe.parenteseEquerdo) {
                     token = lexico.nextToken();
+                    exp_write();
+                    if (token.getClasse() == Classe.parenteseDireito) {
+                        token = lexico.nextToken();
+                    } else {
+                        System.err.println(token.getLinha() + "," + token.getColuna() + "Erro na regra comando write ')' ");
+                    }
                 } else {
-                    System.err.println(token.getLinha() + "," + token.getColuna() +
-                            "Erro na regra comando write na regra comando");
+                    System.err.println(token.getLinha() + "," + token.getColuna() + "Erro na regra comando write '(' ");
                 }
-            }else {
-                System.err.println(token.getLinha() + "," + token.getColuna() +
-                        "Erro na regra comando write na regra comando");
-            }
-        //writeln ( <exp_write> ) {A61} |
-        } else if (token.getClasse() == Classe.palavraReservada &&
-                token.getValor().getValorTexto().equals("writeln")) {
-            token = lexico.nextToken();
-            if (token.getClasse() == Classe.parenteseEquerdo) {
+            } else if (token.getValor().getValorTexto().equals("writeln")) {
+                // writeln ( <exp_write> ) {A61} |
                 token = lexico.nextToken();
-                exp_write();
-                if (token.getClasse() == Classe.parenteseDireito) {
+                if (token.getClasse() == Classe.parenteseEquerdo) {
                     token = lexico.nextToken();
-                    //{A61}
+                    exp_write();
+                    if (token.getClasse() == Classe.parenteseDireito) {
+                        token = lexico.nextToken();
+                        // {A61}
+                    } else {
+                        System.err
+                                .println(token.getLinha() + "," + token.getColuna() + "Erro na regra comando writeln");
+                    }
                 } else {
-                    System.err.println(token.getLinha() + "," + token.getColuna() +
-                            "Erro na regra comando writeln na regra comando");
+                    System.err.println(token.getLinha() + "," + token.getColuna() + "Erro na regra comando writeln");
                 }
-            }else {
-                System.err.println(token.getLinha() + "," + token.getColuna() +
-                        "Erro na regra comando writeln na regra comando");
-            }
-        // for <id> {A57} := <expressao> {A11} to <expressao> {A12} do begin <sentencas>
-        // end {A13} |
-        } else if (token.getClasse() == Classe.palavraReservada &&
-                token.getValor().getValorTexto().equals("for")) {    
-            token = lexico.nextToken();
-            if (token.getClasse() == Classe.identificador) {
+            } else if (token.getValor().getValorTexto().equals("for")) {
+                // for <id> {A57} := <expressao> {A11} to <expressao> {A12} do begin <sentencas>
+                // end {A13}
                 token = lexico.nextToken();
-                // {A57}
-                if (token.getClasse() == Classe.atribuicao) {
+                if (token.getClasse() == Classe.identificador) {
                     token = lexico.nextToken();
-                    expressao();
-                    // {A11}
-                    if ((token.getClasse() == Classe.palavraReservada &&
-                            token.getValor().getValorTexto().equals("to"))) {
+                    // {A57}
+                    if (token.getClasse() == Classe.atribuicao) {
                         token = lexico.nextToken();
                         expressao();
-                        // {A12}
+                        // {A11}
                         if ((token.getClasse() == Classe.palavraReservada &&
-                                token.getValor().getValorTexto().equals("do"))) {
+                                token.getValor().getValorTexto().equals("to"))) {
                             token = lexico.nextToken();
+                            expressao();
+                            // {A12}
                             if ((token.getClasse() == Classe.palavraReservada &&
-                                    token.getValor().getValorTexto().equals("begin"))) {
+                                    token.getValor().getValorTexto().equals("do"))) {
                                 token = lexico.nextToken();
-                                sentencas();
                                 if ((token.getClasse() == Classe.palavraReservada &&
-                                        token.getValor().getValorTexto().equals("end"))) {
+                                        token.getValor().getValorTexto().equals("begin"))) {
                                     token = lexico.nextToken();
-                                    // {A13}
-
+                                    sentencas();
+                                    if ((token.getClasse() == Classe.palavraReservada &&
+                                            token.getValor().getValorTexto().equals("end"))) {
+                                        token = lexico.nextToken();
+                                        // {A13}
+                                    } else {
+                                        System.err.println(token.getLinha() + "," + token.getColuna() +
+                                                "Erro na regra comando for na regra comando end esperado");
+                                    }
+                                } else {
+                                    System.err.println(token.getLinha() + "," + token.getColuna() +
+                                            "Erro na regra comando for na regra comando begin esperado");
                                 }
+                            } else {
+                                System.err.println(token.getLinha() + "," + token.getColuna() +
+                                        "Erro na regra comando for na regra comando");
                             }
+                        } else {
+                            System.err.println(token.getLinha() + "," + token.getColuna() +
+                                    "Erro na regra comando for na regra comando");
                         }
+                    } else {
+                        System.err.println(token.getLinha() + "," + token.getColuna() +
+                                "Erro na regra comando for na regra comando");
                     }
+                } else {
+                    System.err.println(token.getLinha() + "," + token.getColuna() +
+                            "Erro na regra comando for na regra comando");
                 }
-            }
-        } else if (token.getClasse() == Classe.palavraReservada &&
-                token.getValor().getValorTexto().equals("repeat")) {
-            token = lexico.nextToken();
+
+        } else if (token.getValor().getValorTexto().equals("repeat")) {
             // repeat {A14} <sentencas> until ( <expressao_logica> ) {A15} |
+            token = lexico.nextToken();
             // {A14}
             sentencas();
             if (token.getClasse() == Classe.palavraReservada &&
@@ -349,17 +366,21 @@ public class Sintatico {
                         System.err.println(token.getLinha() + "," + token.getColuna() +
                                 "Erro na regra comando repeat");
                     }
+                } else {
+                    System.err.println(token.getLinha() + "," + token.getColuna() +
+                            "Erro na regra comando repeat");
                 }
+            } else {
+                System.err.println(token.getLinha() + "," + token.getColuna() +
+                        "Erro na regra comando repeat");
             }
-
-        } else if (token.getClasse() == Classe.palavraReservada &&
-                token.getValor().getValorTexto().equals("while")) {
+        } else if (token.getValor().getValorTexto().equals("while")) {
+            // while {A16} ( <expressao_logica> ) {A17} do begin <sentencas> end {A18} |
             token = lexico.nextToken();
             // {A16}
-            // while {A16} ( <expressao_logica> ) {A17} do begin <sentencas> end {A18} |
             if (token.getClasse() == Classe.parenteseEquerdo) {
                 token = lexico.nextToken();
-                // expressao_logica();
+                expressao_logica();
                 if (token.getClasse() == Classe.parenteseDireito) {
                     token = lexico.nextToken();
                     // {A17}
@@ -374,21 +395,34 @@ public class Sintatico {
                                     token.getValor().getValorTexto().equals("end")) {
                                 token = lexico.nextToken();
                                 // {A18}
-
+                            } else {
+                                System.err.println(token.getLinha() + "," + token.getColuna() +
+                                        "Erro na regra comando while");
                             }
+
+                        } else {
+                            System.err.println(token.getLinha() + "," + token.getColuna() +
+                                    "Erro na regra comando while");
                         }
 
+                    } else {
+                        System.err.println(token.getLinha() + "," + token.getColuna() +
+                                "Erro na regra comando while");
                     }
                 } else {
                     System.err.println(token.getLinha() + "," + token.getColuna() +
                             "Erro na regra comando while");
                 }
+            } else {
+                System.err.println(token.getLinha() + "," + token.getColuna() +
+                        "Erro na regra comando while");
             }
-        } else if (token.getClasse() == Classe.palavraReservada &&
-                token.getValor().getValorTexto().equals("if")) {
-            token = lexico.nextToken();
+
+        } else if (token.getValor().getValorTexto().equals("if")) {
             // if ( <expressao_logica> ) {A19} then begin <sentencas> end {A20} <pfalsa>
-            // {A21} |
+            // {A21}
+            token = lexico.nextToken();
+            // {A16}
             if (token.getClasse() == Classe.parenteseEquerdo) {
                 token = lexico.nextToken();
                 expressao_logica();
@@ -408,28 +442,45 @@ public class Sintatico {
                                 // {A20}
                                 pfalsa();
                                 // {A21}
+                            }else {
+                                System.err.println(token.getLinha() + "," + token.getColuna() +
+                                        "Erro na regra comando if");
                             }
+
+                        }else {
+                            System.err.println(token.getLinha() + "," + token.getColuna() +
+                                    "Erro na regra comando if");
                         }
-                    } else {
+
+                    }else {
                         System.err.println(token.getLinha() + "," + token.getColuna() +
-                                "Erro na regra comando repeat");
+                                "Erro na regra comando if");
                     }
+                }else {
+                    System.err.println(token.getLinha() + "," + token.getColuna() +
+                            "Erro na regra comando if");
                 }
-            } else if (token.getClasse() == Classe.identificador) {
-                // <id> {A49} := <expressao> {A22} | <chamada_procedimento>
+            }else {
+                System.err.println(token.getLinha() + "," + token.getColuna() +
+                        "Erro na regra comando if");
+            }
+        } 
+    }else if (token.getClasse() == Classe.identificador) {
+            // <id> {A49} := <expressao> {A22} | <chamada_procedimento>
+            token = lexico.nextToken();
+            // {A49}
+            if (token.getClasse() == Classe.atribuicao) {
                 token = lexico.nextToken();
-                // {A49}
-                if (token.getClasse() == Classe.atribuicao) {
-                    token = lexico.nextToken();
-                    expressao();
-                    // {A22}
-                } else {
-                    // chamada_procedimento();
-                }
+                expressao();
+                // {A22}
             } else {
                 System.err.println(token.getLinha() + "," + token.getColuna() +
-                        "erro na regra comando");
+                        "Erro na regra comando id");
             }
+
+        } else {
+            System.err.println(token.getLinha() + "," + token.getColuna() +
+                    "Erro na regra comando");
         }
     }
 
@@ -448,19 +499,17 @@ public class Sintatico {
                     token = lexico.nextToken();
                 } else {
                     System.err.println(token.getLinha() + "," + token.getColuna() +
-                            "Erro na regra comando pfalsa");
+                            "Erro na regra comando pfalsa falta end");
                 }
             } else {
                 System.err.println(token.getLinha() + "," + token.getColuna() +
-                        "Erro na regra comando pfalsa");
+                        "Erro na regra comando pfalsa falta begin");
             }
         }
-
     }
 
     // <expressao_logica> ::= <termo_logico> <mais_expr_logica>
     private void expressao_logica() {
-        token = lexico.nextToken();
         termo_logico();
         mais_expr_logica();
     }
@@ -479,7 +528,6 @@ public class Sintatico {
 
     // <termo_logico> ::= <fator_logico> <mais_termo_logico>
     private void termo_logico() {
-        token = lexico.nextToken();
         fator_logico();
         mais_termo_logico();
     }
@@ -508,6 +556,9 @@ public class Sintatico {
             expressao_logica();
             if (token.getClasse() == Classe.parenteseDireito) {
                 token = lexico.nextToken();
+            }else {
+                System.err.println(token.getLinha() + "," + token.getColuna() +
+                        "Erro na regra comando fator logico");
             }
         } else if (token.getClasse() == Classe.palavraReservada &&
                 token.getValor().getValorTexto().equals("not")) {
@@ -523,7 +574,6 @@ public class Sintatico {
             token = lexico.nextToken();
             // {A30}
         } else {
-            token = lexico.nextToken();
             relacional();
         }
 
@@ -572,7 +622,6 @@ public class Sintatico {
 
     // <expressao> ::= <termo> <mais_expressao>
     private void expressao() {
-        token = lexico.nextToken();
         termo();
         mais_expressao();
     }
@@ -597,7 +646,6 @@ public class Sintatico {
 
     // <termo> ::= <fator> <mais_termo>
     private void termo() {
-        token = lexico.nextToken();
         fator();
         mais_termo();
     }
@@ -621,7 +669,6 @@ public class Sintatico {
     }
 
     // <fator> ::= <id> {A55} | <intnum> {A41} | ( <expressao> ) |
-    // <id> {A60} <argumentos> {A42}
     private void fator() {
         if (token.getClasse() == Classe.identificador) {
             token = lexico.nextToken();
@@ -634,6 +681,9 @@ public class Sintatico {
             expressao();
             if (token.getClasse() == Classe.parenteseDireito) {
                 token = lexico.nextToken();
+            }else {
+                System.err.println(token.getLinha() + "," + token.getColuna() +
+                        "Erro na regra fator");
             }
         } else {
             System.err.println(token.getLinha() + "," + token.getColuna() +

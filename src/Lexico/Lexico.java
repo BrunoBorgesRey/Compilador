@@ -16,7 +16,7 @@ public class Lexico {
     private StringBuilder lexema = new StringBuilder();
     private int linha;
     private int coluna;
-    ArrayList<String> palavrasReservadas = new ArrayList<String>(Arrays.asList("and", "array","begin","case","const","div","do","downto", "else", "end","file", "for", "function", "goto", "if","in", "label", "mod", "nil", "not","of", "or", "packed", "procedure", "program","record", "repeat", "set", "then", "to","type", "until", "var", "while", "with","integer", "real", "boolean", "char", "string", "write","writeln","read"));
+    ArrayList<String> palavrasReservadas = new ArrayList<String>(Arrays.asList("and", "array","begin","case","const","div","do","downto", "else", "end","file", "for", "function", "goto", "if","in", "label", "mod", "nil", "not","of", "or", "packed", "procedure", "program","record", "repeat", "set", "then", "to","type", "until", "var", "while", "with","integer", "real", "boolean", "char", "string", "write","writeln","read","true","false"));
     
     public boolean isPalavraReservada(String palavra){
         return palavrasReservadas.contains(palavra);
