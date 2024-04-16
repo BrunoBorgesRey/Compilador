@@ -13,9 +13,6 @@ public enum Classe{
     operadorMenorIgual, // <=
     operadorIgual, //=
     operadorDiferente, //<>
-    //operadorE,// and
-    //operadorOu, // or
-    //operadorNegacao, // not
     numeroInteiro,
     atribuicao, // :=
     pontoEVirgula, //;
