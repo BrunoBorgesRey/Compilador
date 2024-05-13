@@ -12,6 +12,16 @@
             "args": [
                 "programaPascal.pas"
             ],
+            "projectName": "ProjetoSintatico_379203d0"
+        },
+        {
+            "type": "java",
+            "name": "Compilador",
+            "request": "launch",
+            "mainClass": "Compilador",
+            "args": [
+                "programaPascal.pas"
+            ],
             "projectName": "ProjetoSintatico_fdd7ee5"
         },
         {

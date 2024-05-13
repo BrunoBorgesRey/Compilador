@@ -1,5 +1,13 @@
 package Sintatico;
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.nio.charset.Charset;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+
 import Lexico.Classe;
 import Lexico.Lexico;
 import Lexico.Token;
@@ -8,10 +16,35 @@ public class Sintatico {
     private String nomeArquivo;
     private Lexico lexico;
     private Token token;
+    
+    private TabelaSimbolos tabela = new TabelaSimbolos();
+    private String rotulo = "";
+    private int contRotulo = 1;
+    private int offsetVariavel;
+    private String nomeArquivoSaida;
+    private String caminhoArquivoSaida;
+    private BufferedWriter bw;
+    private FileWriter fw;
+    private static final int TAMANHO_INTEIRO = 4;
+    private List<String> variaveis = new ArrayList<String>();
+    private List<String> sectionData = new ArrayList<String>();
+    private Registro registro;
+   
 
     public Sintatico(String nomeArquivo) {
         this.nomeArquivo = nomeArquivo;
         lexico = new Lexico(nomeArquivo);
+        
+        nomeArquivoSaida = "queronemver.asm";
+        caminhoArquivoSaida = Paths.get(nomeArquivoSaida).toAbsolutePath().toString();
+        bw = null;
+        fw = null;
+        try {
+            fw = new FileWriter(caminhoArquivoSaida, Charset.forName("UTF-8"));
+            bw = new BufferedWriter(fw);
+        } catch (Exception e) {
+            System.err.println("Erro ao criar arquivo de saída");
+        }
     }
 
     public void analisar() {
@@ -20,14 +53,48 @@ public class Sintatico {
         programa();
     }
 
+    private void escreverCodigo(String instrucoes) {
+        try {
+            if (rotulo.isEmpty()) {
+                bw.write(instrucoes + "\n");
+            } else {
+                bw.write(rotulo + ": " + instrucoes + "\n");
+                rotulo = "";
+            }
+        } catch (IOException e) {
+            System.err.println("Erro escrevendo no arquivo de saída");
+        }
+    }
+
+    private String criarRotulo(String texto) {
+        String retorno = "rotulo" + texto + contRotulo;
+        contRotulo++;
+        return retorno;
+    }
+
     // <programa> ::= program <id> {A01} ; <corpo> • {A45}
     private void programa() {
         if (token.getClasse() == Classe.palavraReservada &&
                 token.getValor().getValorTexto().equals("program")) {
             token = lexico.nextToken();
             if (token.getClasse() == Classe.identificador) {
-                token = lexico.nextToken();
+                
                 // {A01}
+                Registro registro = tabela.add(token.getValor().getValorTexto());
+                offsetVariavel = 0;
+                registro.setCategoria(Categoria.PROGRAMAPRINCIPAL);
+                escreverCodigo(("global main"));
+                escreverCodigo("extern printf");
+                escreverCodigo("extern scanf");
+                escreverCodigo("section .text");
+                rotulo = "main";
+                // escreverCodigo(rotulo+ ":");
+                escreverCodigo("\t   ;Entrada do Programa");
+                escreverCodigo("\t   push ebp");
+                escreverCodigo("\t   mov ebp, esp");
+                System.out.println(tabela);
+                
+                token = lexico.nextToken();
                 if (token.getClasse() == Classe.pontoEVirgula) {
                     token = lexico.nextToken();
                     //Analisa o corpo do programa
@@ -35,10 +102,25 @@ public class Sintatico {
                     if (token.getClasse() == Classe.ponto) {
                         token = lexico.nextToken();
                         // {A45}
-                    } else {
-                        System.err.println(token.getLinha() + "," + token.getColuna() +
-                                "(.) Ponto Final esperado no fila do programa na regra programa");
-                    }
+                        escreverCodigo("\tleave");
+                        escreverCodigo("\tret");
+                        if (!sectionData.isEmpty()) {
+                            escreverCodigo("\nsection .data\n");
+                            for (String mensagem : sectionData) {
+                                escreverCodigo(mensagem);
+                            }
+                        }
+                        try {
+                            bw.close();
+                            fw.close();
+                        } catch (IOException e) {
+                            System.err.println("Erro ao fechar arquivo de saída");
+                        }
+
+                        } else {
+                            System.err.println(token.getLinha() + "," + token.getColuna() +
+                                    "(.) Ponto Final esperado no fila do programa na regra programa");
+                        }
 
                 } else {
                     System.err.println(token.getLinha() + "," + token.getColuna() +
@@ -116,6 +198,12 @@ public class Sintatico {
             token = lexico.nextToken();
             tipo_var();
             // {A02}
+            int tamanho = 0;
+            for (String var : variaveis) {
+                tabela.get(var).setTipo(Tipo.INTEGER);
+            }
+            escreverCodigo("\tsub esp, " + tamanho + "\n");
+            variaveis.clear();
         } else {
             System.err.println(token.getLinha() + "," + token.getColuna() +
                     "(:) esperado no programa na regra dvar ");
@@ -136,8 +224,22 @@ public class Sintatico {
     // <variaveis> ::= id {A03} <mais_var>
     private void variaveis() {
         if (token.getClasse() == Classe.identificador) {
-            token = lexico.nextToken();
             // {A03}
+            String variavel = token.getValor().getValorTexto();
+            if (tabela.isPresent(variavel)) {
+                System.err.println("Variável" + variavel + "ja foi declarado anteriormente");
+                System.exit(-1);
+            } else {
+                tabela.add(variavel);
+                tabela.get(variavel).setCategoria(Categoria.VARIAVEL);
+                tabela.get(variavel).setOffset(offsetVariavel);
+                offsetVariavel += TAMANHO_INTEIRO;
+                variaveis.add(variavel);
+            }
+            System.out.println(tabela);
+            
+            token = lexico.nextToken();
+            
             mais_var();
         } else {
             System.err.println(token.getLinha() + "," + token.getColuna() +
@@ -187,9 +289,30 @@ public class Sintatico {
 
     // <var_read> ::= id {A08} <mais_var_read>
     private void var_read() {
+        // {A08}
         if (token.getClasse() == Classe.identificador) {
+            String variavel = token.getValor().getValorTexto();
+        if (!tabela.isPresent(variavel)) {
+            System.err.println("Variável " + variavel + " não foi declarada");
+            System.exit(-1);
+        } else {
+            registro = tabela.get(variavel);
+            if (registro.getCategoria() != Categoria.VARIAVEL) {
+                System.err.println("Identificador " + variavel + " não é uma variável");
+                System.exit(-1);
+            } else {
+                escreverCodigo("\tmov edx, ebp");
+                escreverCodigo("\tlea eax, [edx - " + registro.getOffset() + "]");
+                escreverCodigo("\tpush eax");
+                escreverCodigo("\tpush @Integer");
+                escreverCodigo("\tcall scanf");
+                escreverCodigo("\tadd esp, 8");
+            }
+        }
+
             token = lexico.nextToken();
-            // {A08}
+            
+
             mais_var_read();
         } else {
             System.err.println(token.getLinha() + "," + token.getColuna() +
@@ -212,8 +335,31 @@ public class Sintatico {
      */
     private void exp_write() {
         if (token.getClasse() == Classe.identificador) {
-            token = lexico.nextToken();
             // {A09}
+            String variavel = token.getValor().getValorTexto();
+            if (!tabela.isPresent(variavel)) {
+                System.err.println("Variável " + variavel + " não foi declarada");
+                System.exit(-1);
+            } else {
+                Registro registro = tabela.get(variavel);
+                if (registro.getCategoria() != Categoria.VARIAVEL) {
+                    System.err.println("Identificador " + variavel + " não é uma variável");
+                    System.exit(-1);
+                } else {
+                    escreverCodigo("\tpush dword[ebp - " + registro.getOffset() + "]");
+                    escreverCodigo("\tpush @Integer");
+                    escreverCodigo("\tcall printf");
+                    escreverCodigo("\tadd esp, 8");
+                    if (!sectionData.contains("@Integer: db '%d',0")) {
+                        sectionData.add("@Integer: db '%d',0");
+                    }
+                    if (!sectionData.contains("@IntegerLN: db '%d',10,0")) {
+                        sectionData.add("@IntegerLN: db '%d',10,0");
+                    }
+                }
+            }
+            
+            token = lexico.nextToken();
             mais_exp_write();
         } else if (token.getClasse() == Classe.string) {
             token = lexico.nextToken();
@@ -287,8 +433,17 @@ public class Sintatico {
                     token = lexico.nextToken();
                     exp_write();
                     if (token.getClasse() == Classe.parenteseDireito) {
-                        token = lexico.nextToken();
                         // {A61}
+                        //Gerar um avanço de Linha
+                        String novaLinha = "rotuloStringLN: db '' , 10,0";
+                        if (!sectionData.contains(novaLinha)) {
+                            sectionData.add(novaLinha);
+                        }
+                        escreverCodigo("\tpush"+ novaLinha);
+                        escreverCodigo("\tcall printf");
+                        escreverCodigo("\tadd esp, 4");
+                        
+                        token = lexico.nextToken();
                     } else {
                         System.err
                                 .println(token.getLinha() + "," + token.getColuna() + "Erro na regra comando writeln");
@@ -301,17 +456,38 @@ public class Sintatico {
                 // end {A13}
                 token = lexico.nextToken();
                 if (token.getClasse() == Classe.identificador) {
-                    token = lexico.nextToken();
                     // {A57}
+                    String variavel = token.getValor().getValorTexto();
+                    if (!tabela.isPresent(variavel)) {
+                        System.err.println("Variável " + variavel + " não foi declarada");
+                        System.exit(-1);
+                    } else {
+                        Registro registro = tabela.get(variavel);
+                        if (registro.getCategoria() != Categoria.VARIAVEL) {
+                            System.err.println("Identificador " + variavel + " não é uma variável");
+                            System.exit(-1);
+                        }
+                    }
+                    token = lexico.nextToken();
                     if (token.getClasse() == Classe.atribuicao) {
                         token = lexico.nextToken();
                         expressao();
                         // {A11}
+                        escreverCodigo("\tpop dword[ebp - "+ registro.getOffset()+"]");
+                        String rotuloEntrada = criarRotulo("FOR");
+                        String rotuloSaida = criarRotulo("FIMFOR");
+                        rotulo = rotuloEntrada;
                         if ((token.getClasse() == Classe.palavraReservada &&
                                 token.getValor().getValorTexto().equals("to"))) {
                             token = lexico.nextToken();
                             expressao();
                             // {A12}
+                            escreverCodigo("\tpush ecx\n"
+								  + "\tmov ecx, dword[ebp - " + registro.getOffset() + "]\n"
+								  + "\tcmp ecx, dword[esp+4]\n"  //+4 por causa do ecx
+								  + "\tjg " + rotuloSaida + "\n"
+								  + "\tpop ecx");
+                            
                             if ((token.getClasse() == Classe.palavraReservada &&
                                     token.getValor().getValorTexto().equals("do"))) {
                                 token = lexico.nextToken();
@@ -323,6 +499,12 @@ public class Sintatico {
                                             token.getValor().getValorTexto().equals("end"))) {
                                         token = lexico.nextToken();
                                         // {A13}
+                                        // Gerar as instruções para incrementar a variável id.
+                                        escreverCodigo("\tadd dword[ebp - " + registro.getOffset() + "], 1");
+                                        // Gerar um desvio para rotuloFor.
+                                        escreverCodigo("\tjmp " + rotuloEntrada);
+                                        // Gerar o rótulo rotuloFim.
+                                        rotulo = rotuloSaida;
                                     } else {
                                         System.err.println(token.getLinha() + "," + token.getColuna() +
                                                 "Erro na regra comando for na regra comando end esperado");
@@ -350,8 +532,11 @@ public class Sintatico {
 
         } else if (token.getValor().getValorTexto().equals("repeat")) {
             // repeat {A14} <sentencas> until ( <expressao_logica> ) {A15} |
-            token = lexico.nextToken();
             // {A14}
+            String rotRepeat = criarRotulo("Repeat");
+            rotulo = rotRepeat;
+
+            token = lexico.nextToken();
             sentencas();
             if (token.getClasse() == Classe.palavraReservada &&
                     token.getValor().getValorTexto().equals("until")) {
@@ -362,6 +547,8 @@ public class Sintatico {
                     if (token.getClasse() == Classe.parenteseDireito) {
                         token = lexico.nextToken();
                         // {A15}
+                        escreverCodigo("\tcmp dword[esp], 0\n");
+                        escreverCodigo("\tje"+ rotRepeat);
                     } else {
                         System.err.println(token.getLinha() + "," + token.getColuna() +
                                 "Erro na regra comando repeat");
@@ -522,6 +709,33 @@ public class Sintatico {
             termo_logico();
             mais_expr_logica();
             // {A26}
+            // Empilhar 1, caso o valor de expressao_logica ou termo_logico seja 1, e 0
+            // (falso), caso seja diferente. Isto pode ser feito da seguinte forma:
+            // Crie um novo rótulo, digamos rotSaida
+            String rotSaida = criarRotulo("SaidaMEL");
+            // Crie um novo rótulo, digamos rotVerdade
+            String rotVerdade = criarRotulo("VerdadeMEL");
+            // Gere a instrução: cmp dword [ESP + 4], 1
+            escreverCodigo("\tcmp dword [ESP + 4], 1");
+            // Gere a instrução je para rotVerdade
+            escreverCodigo("\tje " + rotVerdade);
+            // Gere a instrução: cmp dword [ESP], 1
+            escreverCodigo("\tcmp dword [ESP], 1");
+            // Gere a instrução je para rotVerdade
+            escreverCodigo("\tje " + rotVerdade);
+            // Gere a instrução: mov dword [ESP + 4], 0
+            escreverCodigo("\tmov dword [ESP + 4], 0");
+            // Gere a instrução jmp para rotSaida
+            escreverCodigo("\tjmp " + rotSaida);
+            // Gere o rótulo rotVerdade
+            rotulo = rotVerdade;
+            // Gere a instrução: mov dword [ESP + 4], 1
+            escreverCodigo("\tmov dword [ESP + 4], 1");
+            // Gere o rótulo rotSaida
+            rotulo = rotSaida;
+            // Gere a instrução: add esp, 4
+            escreverCodigo("\tadd esp, 4");
+
         }
 
     }
@@ -674,8 +888,9 @@ public class Sintatico {
             token = lexico.nextToken();
             // {A55}
         } else if (token.getClasse() == Classe.numeroInteiro) {
-            token = lexico.nextToken();
             // {A41}
+            escreverCodigo("\tpush "+token.getValor().getValorInteiro());
+            token = lexico.nextToken();
         } else if (token.getClasse() == Classe.parenteseEquerdo) {
             token = lexico.nextToken();
             expressao();
