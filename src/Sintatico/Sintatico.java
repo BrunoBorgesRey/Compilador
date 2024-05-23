@@ -18,7 +18,7 @@ public class Sintatico {
     private Token token;
     
     private TabelaSimbolos tabela = new TabelaSimbolos();
-    private String rotulo = "";
+    private String rotulo = " ";
     private int contRotulo = 1;
     private int offsetVariavel;
     private String nomeArquivoSaida;
@@ -29,7 +29,8 @@ public class Sintatico {
     private List<String> variaveis = new ArrayList<String>();
     private List<String> sectionData = new ArrayList<String>();
     private Registro registro;
-   
+    private String rotuloElse;
+    
 
     public Sintatico(String nomeArquivo) {
         this.nomeArquivo = nomeArquivo;
@@ -462,7 +463,7 @@ public class Sintatico {
                         System.err.println("Variável " + variavel + " não foi declarada");
                         System.exit(-1);
                     } else {
-                        Registro registro = tabela.get(variavel);
+                        registro = tabela.get(variavel);
                         if (registro.getCategoria() != Categoria.VARIAVEL) {
                             System.err.println("Identificador " + variavel + " não é uma variável");
                             System.exit(-1);
@@ -547,7 +548,7 @@ public class Sintatico {
                     if (token.getClasse() == Classe.parenteseDireito) {
                         token = lexico.nextToken();
                         // {A15}
-                        escreverCodigo("\tcmp dword[esp], 0\n");
+                        escreverCodigo("\tcmp dword[esp], 0");
                         escreverCodigo("\tje"+ rotRepeat);
                     } else {
                         System.err.println(token.getLinha() + "," + token.getColuna() +
@@ -565,12 +566,17 @@ public class Sintatico {
             // while {A16} ( <expressao_logica> ) {A17} do begin <sentencas> end {A18} |
             token = lexico.nextToken();
             // {A16}
+            String rotuloWhile = criarRotulo("While");
+            String rotuloFim = criarRotulo("FimWhile");
+            rotulo = rotuloWhile;
             if (token.getClasse() == Classe.parenteseEquerdo) {
                 token = lexico.nextToken();
                 expressao_logica();
                 if (token.getClasse() == Classe.parenteseDireito) {
                     token = lexico.nextToken();
                     // {A17}
+                    escreverCodigo("\tcmp dword[esp], 0\n");
+                    escreverCodigo("\tje "+ rotuloFim);
                     if (token.getClasse() == Classe.palavraReservada &&
                             token.getValor().getValorTexto().equals("do")) {
                         token = lexico.nextToken();
@@ -582,6 +588,10 @@ public class Sintatico {
                                     token.getValor().getValorTexto().equals("end")) {
                                 token = lexico.nextToken();
                                 // {A18}
+                                //Gerar um desvio para rotuloWhile.
+                                escreverCodigo("\tjmp "+ rotuloWhile);
+                                //Gerar o rótulo rotuloFim.
+                                rotulo = rotuloFim;
                             } else {
                                 System.err.println(token.getLinha() + "," + token.getColuna() +
                                         "Erro na regra comando while");
@@ -616,6 +626,12 @@ public class Sintatico {
                 if (token.getClasse() == Classe.parenteseDireito) {
                     token = lexico.nextToken();
                     // {A19}
+                    String rotuloElse = criarRotulo("Else");
+                    String rotuloFim = criarRotulo("FimIf");
+                    escreverCodigo("\tcmp dword[esp], 0\n");
+                    escreverCodigo("\tje "+ rotuloElse);
+                    //Gerar o rótulo rotuloFim.
+                    rotulo = rotuloFim;
                     if (token.getClasse() == Classe.palavraReservada &&
                             token.getValor().getValorTexto().equals("then")) {
                         token = lexico.nextToken();
@@ -627,8 +643,10 @@ public class Sintatico {
                                     token.getValor().getValorTexto().equals("end")) {
                                 token = lexico.nextToken();
                                 // {A20}
+                                escreverCodigo("\tjmp "+rotuloFim);
                                 pfalsa();
                                 // {A21}
+                                rotulo = rotuloFim;
                             }else {
                                 System.err.println(token.getLinha() + "," + token.getColuna() +
                                         "Erro na regra comando if");
@@ -654,12 +672,28 @@ public class Sintatico {
         } 
     }else if (token.getClasse() == Classe.identificador) {
             // <id> {A49} := <expressao> {A22} | <chamada_procedimento>
-            token = lexico.nextToken();
             // {A49}
+            String variavel = token.getValor().getValorTexto();
+            if (!tabela.isPresent(variavel)) {
+                System.err.println("Variável " + variavel + " não foi declarada");
+                System.exit(-1);
+            } else {
+                Registro registro = tabela.get(variavel);
+                if (registro.getCategoria() != Categoria.VARIAVEL) {
+                    System.err.println("Identificador " + variavel + " não é uma variável");
+                    System.exit(-1);
+                }
+            }
+            
+            token = lexico.nextToken();
+            
             if (token.getClasse() == Classe.atribuicao) {
                 token = lexico.nextToken();
                 expressao();
                 // {A22}
+                registro = tabela.get(variavel);
+                escreverCodigo("\tpop eax");
+                escreverCodigo("\tmov dword[ebp - "+registro.getOffset()+ "], eax");
             } else {
                 System.err.println(token.getLinha() + "," + token.getColuna() +
                         "Erro na regra comando id");
@@ -673,10 +707,12 @@ public class Sintatico {
 
     // <pfalsa> ::= else {A25} begin <sentencas> end | ε
     private void pfalsa() {
+        // {A25}
+        //rotulo = rotuloElse;
+        escreverCodigo(rotuloElse + ":");
         if (token.getClasse() == Classe.palavraReservada &&
                 token.getValor().getValorTexto().equals("else")) {
             token = lexico.nextToken();
-            // {A25}
             if (token.getClasse() == Classe.palavraReservada &&
                     token.getValor().getValorTexto().equals("begin")) {
                 token = lexico.nextToken();
@@ -754,7 +790,7 @@ public class Sintatico {
             fator_logico();
             mais_termo_logico();
             // {A27}
-            // Empilhar 1 (verdadeiro), caso o valor de termo_logico e fator_logico seja 1,
+             // Empilhar 1 (verdadeiro), caso o valor de termo_logico e fator_logico seja 1,
             // e 0 (falso), caso seja diferente. Proceda de forma semelhante a ação 26.
             // Crie um novo rótulo, digamos rotSaida
             String rotSaida = criarRotulo("SaidaMTL");
@@ -763,21 +799,25 @@ public class Sintatico {
             // Gere a instrução: cmp dword [ESP + 4], 1
             escreverCodigo("\tcmp dword [ESP + 4], 1");
             escreverCodigo("\tjne " + rotFalso);
-            escreverCodigo("\tcmp dword [ESP + 4], dword [ESP]");
+            // Comparar os 2 valores
+            // Gere a instrução: pop eax
+            escreverCodigo("\tpop eax");
+            // Gere a instrução: cmp dword [ESP], eax
+            escreverCodigo("\tcmp dword [ESP], eax");
             // Gere a instrução je para rotVerdade
             escreverCodigo("\tjne " + rotFalso);
-            // Gere a instrução: mov dword [ESP + 4], 1
-            escreverCodigo("\tmov dword [ESP + 4], 1");
+            // Gere a instrução: mov dword [ESP], 1
+            escreverCodigo("\tmov dword [ESP], 1");
             // Gere a instrução jmp para rotSaida
             escreverCodigo("\tjmp " + rotSaida);
             // Gere o rótulo rotFalso
             rotulo = rotFalso;
-            // Gere a instrução: mov dword [ESP + 4], 0
-            escreverCodigo("\tmov dword [ESP + 4], 0");          
+            // Gere a instrução: mov dword [ESP], 0
+            escreverCodigo("\tmov dword [ESP], 0");
             // Gere o rótulo rotSaida
             rotulo = rotSaida;
             // Gere a instrução: add esp, 4
-            escreverCodigo("\tadd esp, 4");
+            // escreverCodigo("\tadd esp, 4");
         }
     }
 
@@ -1027,7 +1067,8 @@ public class Sintatico {
             // Como sugestão, você pode proceder da seguinte forma:
             escreverCodigo("\tpop eax");  
             escreverCodigo("\tadd dword[ESP], eax");
-
+            escreverCodigo("\tpop ecx");
+            escreverCodigo("\tpush eax");
 
         } else if (token.getClasse() == Classe.operadorSubtracao) {
             token = lexico.nextToken();
@@ -1054,22 +1095,22 @@ public class Sintatico {
         if (token.getClasse() == Classe.operadorMultiplicacao) {
             token = lexico.nextToken();
             fator();
-            mais_termo();
             // {A39}
             escreverCodigo("\tpop eax");
             escreverCodigo("\timul eax, dword [ESP]"); 
             escreverCodigo("\tmov dword [ESP], eax");  
-
+            
+            mais_termo();
         } else if (token.getClasse() == Classe.operadorDivicao) {
             token = lexico.nextToken();
             fator();
-            mais_termo();
             // {A40}
             escreverCodigo("\tpop ecx");
             escreverCodigo("\tpop eax"); 
             escreverCodigo("\tidiv ecx"); 
             escreverCodigo("\tpush eax"); 
-
+            
+            mais_termo();
 
         }
     }
