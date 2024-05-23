@@ -1122,12 +1122,8 @@ public class Sintatico {
             escreverCodigo("\tpop eax"); 
             escreverCodigo("\tidiv ecx"); 
             escreverCodigo("\tpush eax"); 
-<<<<<<< HEAD
-            
-            mais_termo();
 
-=======
->>>>>>> eab54c51042a11d85d7a8d53c7c603100daddec9
+            mais_termo();
         }
     }
 

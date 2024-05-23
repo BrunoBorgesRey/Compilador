@@ -1,7 +1,4 @@
-<<<<<<< HEAD
 
-=======
->>>>>>> eab54c51042a11d85d7a8d53c7c603100daddec9
 import Sintatico.Sintatico;
 
 public class Compilador {
