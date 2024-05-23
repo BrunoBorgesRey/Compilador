@@ -84,15 +84,14 @@ public class Sintatico {
                 Registro registro = tabela.add(token.getValor().getValorTexto());
                 offsetVariavel = 0;
                 registro.setCategoria(Categoria.PROGRAMAPRINCIPAL);
-                escreverCodigo(("global main"));
+                escreverCodigo("global main");
                 escreverCodigo("extern printf");
-                escreverCodigo("extern scanf");
+                escreverCodigo("extern scanf\n");
                 escreverCodigo("section .text");
                 rotulo = "main";
-                // escreverCodigo(rotulo+ ":");
-                escreverCodigo("\t   ;Entrada do Programa");
-                escreverCodigo("\t   push ebp");
-                escreverCodigo("\t   mov ebp, esp");
+                escreverCodigo("\t; Entrada do Programa");
+                escreverCodigo("\tpush ebp");
+                escreverCodigo("\tmov ebp, esp");
                 System.out.println(tabela);
                 
                 token = lexico.nextToken();
@@ -465,7 +464,7 @@ public class Sintatico {
                     } else {
                         registro = tabela.get(variavel);
                         if (registro.getCategoria() != Categoria.VARIAVEL) {
-                            System.err.println("Identificador " + variavel + " não é uma variável");
+                            System.err.println("Identificador " + variavel + " não é uma variável  A57");
                             System.exit(-1);
                         }
                     }
@@ -474,20 +473,33 @@ public class Sintatico {
                         token = lexico.nextToken();
                         expressao();
                         // {A11}
-                        escreverCodigo("\tpop dword[ebp - "+ registro.getOffset()+"]");
+                         // ▪ Desempilhar o resultado da avaliação da <expressao> e armazená-lo no
+                        // endereço de memória de id. (Lembre-se, o endereço de memória é calculado em
+                        // função da base da pilha (EBP) e do deslocamento contido em display.)
+                        escreverCodigo("\tpop dword[ebp - " + registro.getOffset() + "]");
+                        // ▪ Criar um novo rótulo para a entrada do laço (digamos que este rótulo seja
+                        // denominado por rotuloFor)
                         String rotuloEntrada = criarRotulo("FOR");
+                        // ▪ Criar um novo rótulo para a saída do laço (digamos que este rótulo seja
+                        // denominado por rotuloFim)
                         String rotuloSaida = criarRotulo("FIMFOR");
+                        // ▪ Gerar o rotulo rotuloFor.
                         rotulo = rotuloEntrada;
                         if ((token.getClasse() == Classe.palavraReservada &&
                                 token.getValor().getValorTexto().equals("to"))) {
                             token = lexico.nextToken();
                             expressao();
                             // {A12}
+                            // Gerar um desvio para rotuloFim se o valor armazenado no endereço de memória
+                            // de id é maior que o resultado da avaliação de expressao (lembre-se, o
+                            // resultado de expressao está no topo da pilha). Não se esqueça, o endereço de
+                            // memória de id é calculado em função da base da pilha (EBP) e do deslocamento
+                            // contido em display.
                             escreverCodigo("\tpush ecx\n"
-								  + "\tmov ecx, dword[ebp - " + registro.getOffset() + "]\n"
-								  + "\tcmp ecx, dword[esp+4]\n"  //+4 por causa do ecx
-								  + "\tjg " + rotuloSaida + "\n"
-								  + "\tpop ecx");
+                            + "\tmov ecx, dword[ebp - " + registro.getOffset() + "]\n"
+                            + "\tcmp ecx, dword[esp+4]\n" // +4 por causa do ecx
+                            + "\tjg " + rotuloSaida + "\n"
+                            + "\tpop ecx");
                             
                             if ((token.getClasse() == Classe.palavraReservada &&
                                     token.getValor().getValorTexto().equals("do"))) {
@@ -867,11 +879,13 @@ public class Sintatico {
                 token.getValor().getValorTexto().equals("true")) {
             token = lexico.nextToken();
             // {A29}
+            // Empilhar 1.
             escreverCodigo("\tpush 1");
         } else if (token.getClasse() == Classe.palavraReservada &&
                 token.getValor().getValorTexto().equals("false")) {
             token = lexico.nextToken();
             // {A30}
+            // Empilhar 0.
             escreverCodigo("\tpush 0");
         } else {
             relacional();
@@ -1077,7 +1091,6 @@ public class Sintatico {
             // {A38}
             escreverCodigo("\tpop eax");  
             escreverCodigo("\tsub dword[ESP], eax");
-
         }
     }
 
@@ -1109,9 +1122,12 @@ public class Sintatico {
             escreverCodigo("\tpop eax"); 
             escreverCodigo("\tidiv ecx"); 
             escreverCodigo("\tpush eax"); 
+<<<<<<< HEAD
             
             mais_termo();
 
+=======
+>>>>>>> eab54c51042a11d85d7a8d53c7c603100daddec9
         }
     }
 
