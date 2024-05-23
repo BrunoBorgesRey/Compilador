@@ -1,6 +1,3 @@
-import Lexico.Classe;
-import Lexico.Lexico;
-import Lexico.Token;
 import Sintatico.Sintatico;
 
 public class Compilador {
